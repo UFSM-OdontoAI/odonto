@@ -1,0 +1,105 @@
+{% extends "viewer/base.html" %}
+{% block content %}
+
+<h3>{{ image.file_name }}</h3>
+
+<div id="controls" style="margin-bottom:12px;"></div>
+
+<div class="viewer-wrapper">
+<svg id="svg"
+     viewBox="0 0 {{ image.width }} {{ image.height }}"
+     preserveAspectRatio="xMidYMid meet">
+  <g id="viewport">
+    <image href="/viewer/image/{{ split }}/{{ image.file_name }}/"
+           x="0" y="0"
+           width="{{ image.width }}"
+           height="{{ image.height }}" />
+  </g>
+</svg>
+</div>
+
+<script>
+const A = {{ annotations|safe }};
+const viewport = document.getElementById("viewport");
+const svg = document.getElementById("svg");
+const ctr = document.getElementById("controls");
+
+let scale = 1.0, tx = 0, ty = 0;
+let dragging=false, lastX=0, lastY=0;
+
+function updateTransform(){
+ viewport.setAttribute("transform",`translate(${tx},${ty}) scale(${scale})`);
+}
+
+function col(i){return ['red','green','blue','orange','purple','cyan'][i%6];}
+
+// ---- toggles ----
+const byCls = {};
+A.forEach(a=>{
+ if(!byCls[a.category]) byCls[a.category]=[];
+ byCls[a.category].push(a);
+});
+
+Object.keys(byCls).forEach(c=>{
+ const l=document.createElement('label');
+ l.style.marginRight="12px";
+ const cb=document.createElement('input');
+ cb.type='checkbox'; cb.checked=true;
+ cb.onchange=()=>{
+  document.querySelectorAll('[data-cls="'+c+'"]').forEach(e=>{
+   e.style.display = cb.checked ? 'block':'none';
+  });
+ };
+ l.appendChild(cb); l.append(' '+c);
+ ctr.appendChild(l);
+});
+
+// ---- draw ----
+A.forEach(a=>{
+ const c=col(a.category_id);
+ const [x,y,w,h]=a.bbox;
+ const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+ r.setAttribute('x',x);r.setAttribute('y',y);
+ r.setAttribute('width',w);r.setAttribute('height',h);
+ r.setAttribute('stroke',c);r.setAttribute('fill','none');
+ r.setAttribute('stroke-width',2);
+ r.dataset.cls=a.category;
+ viewport.appendChild(r);
+
+ a.segmentation.forEach(p=>{
+  let d='M ';
+  for(let i=0;i<p.length;i+=2) d+=p[i]+' '+p[i+1]+' ';
+  d+='Z';
+  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d',d);
+  path.setAttribute('stroke',c);
+  path.setAttribute('fill',c);
+  path.setAttribute('fill-opacity',0.3);
+  path.dataset.cls=a.category;
+  viewport.appendChild(path);
+ });
+});
+
+// ---- zoom ----
+svg.addEventListener("wheel",e=>{
+ e.preventDefault();
+ scale *= e.deltaY<0 ? 1.1 : 0.9;
+ scale=Math.min(Math.max(scale,0.2),10);
+ updateTransform();
+});
+
+// ---- pan ----
+svg.addEventListener("mousedown",e=>{
+ dragging=true; lastX=e.clientX; lastY=e.clientY;
+});
+window.addEventListener("mouseup",()=>dragging=false);
+window.addEventListener("mousemove",e=>{
+ if(!dragging) return;
+ tx+=(e.clientX-lastX)/scale;
+ ty+=(e.clientY-lastY)/scale;
+ lastX=e.clientX; lastY=e.clientY;
+ updateTransform();
+});
+</script>
+
+{% endblock %}

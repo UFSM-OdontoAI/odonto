@@ -1,0 +1,87 @@
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(#f9fbff, #eef3fb);
+  color: #2d2d2d;
+}
+
+.topbar {
+  background: transparent;
+  padding: 48px 0 24px;
+  text-align: center;
+}
+
+.header-flex {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo-img {
+  width: 96px;
+  height: auto;
+}
+
+.logo {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #0a4fbf;
+}
+
+.subtitle {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.container {
+  width: min(1100px, 92%);
+  margin: auto;
+}
+
+.footer {
+  margin-top: 64px;
+  text-align: center;
+  padding: 32px;
+  color: #9aa3b2;
+}
+
+.cards {
+  margin-top: 48px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 32px;
+}
+
+.card {
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+}
+
+.viewer-wrapper {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  cursor: grab;
+}
+
+svg:active {
+  cursor: grabbing;
+}
