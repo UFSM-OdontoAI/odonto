@@ -1,18 +1,20 @@
 {% extends "viewer/base.html" %}
+
 {% block content %}
 
 <h1>Datasets disponíveis</h1>
 
 <div class="cards">
-  <a class="card" href="/viewer/train/">
+  <a class="card" href="{% url 'image_list' 'train' %}">
     <h2>Treinamento</h2>
     <p>Base train2017</p>
   </a>
 
-  <a class="card" href="/viewer/val/">
+  <a class="card" href="{% url 'image_list' 'val' %}">
     <h2>Validação</h2>
     <p>Base val2017</p>
   </a>
 </div>
 
 {% endblock %}
+

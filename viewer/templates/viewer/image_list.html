@@ -1,16 +1,20 @@
 {% extends "viewer/base.html" %}
+
 {% block content %}
 
 <h1>Dataset {{ split }}</h1>
 
-<ul>
-{% for img in images %}
-  <li>
-    <a href="/viewer/{{ split }}/{{ img.id }}/">
-      {{ img.file_name }}
-    </a>
-  </li>
-{% endfor %}
+<ul class="image-list">
+  {% for img in images %}
+    <li>
+      <a href="{% url 'image_detail' split img.id %}">
+        {{ img.file_name }}
+      </a>
+    </li>
+  {% endfor %}
 </ul>
 
+<a href="{% url 'image_list' split %}"></a>
+
 {% endblock %}
+

@@ -1,105 +1,362 @@
 {% extends "viewer/base.html" %}
+
 {% block content %}
 
 <h3>{{ image.file_name }}</h3>
 
+<!-- Toggle Universal / FDI -->
+<div style="margin-bottom:12px;">
+  <strong>Numeração:</strong>
+  <label>
+    <input type="radio" name="notation" value="universal">
+    Universal
+  </label>
+  <label style="margin-left:12px;">
+    <input type="radio" name="notation" value="fdi" checked>
+    FDI
+  </label>
+</div>
+<div style="margin-bottom:8px;">
+  <button id="btn-all-on">Marcar todos</button>
+  <button id="btn-all-off" style="margin-left:8px;">Desmarcar todos</button>
+</div>
+
+<!-- Checkboxes das classes -->
 <div id="controls" style="margin-bottom:12px;"></div>
 
 <div class="viewer-wrapper">
-<svg id="svg"
-     viewBox="0 0 {{ image.width }} {{ image.height }}"
-     preserveAspectRatio="xMidYMid meet">
-  <g id="viewport">
-    <image href="/viewer/image/{{ split }}/{{ image.file_name }}/"
-           x="0" y="0"
-           width="{{ image.width }}"
-           height="{{ image.height }}" />
-  </g>
-</svg>
+  <svg id="svg"
+       viewBox="0 0 {{ image.width }} {{ image.height }}"
+       preserveAspectRatio="xMidYMid meet">
+    <g id="viewport">
+      <image
+        href="{% url 'serve_image' split image.file_name %}"
+        x="0" y="0"
+        width="{{ image.width }}"
+        height="{{ image.height }}" />
+    </g>
+  </svg>
 </div>
 
 <script>
+// =====================
+// Universal → FDI map
+// =====================
+const UNIVERSAL_TO_FDI = {
+  1:11, 2:12, 3:13, 4:14, 5:15, 6:16, 7:17, 8:18,
+  9:21,10:22,11:23,12:24,13:25,14:26,15:27,16:28,
+ 17:31,18:32,19:33,20:34,21:35,22:36,23:37,24:38,
+ 25:41,26:42,27:43,28:44,29:45,30:46,31:47,32:48
+};
+
+const UNIVERSAL_TO_UNIVERSAL = {
+  1:8, 2:7, 3:6, 4:5, 5:4, 6:3, 7:2, 8:1,
+  9:9,10:10,11:11,12:12,13:13,14:14,15:15,16:16,
+ 17:24,18:23,19:22,20:21,21:20,22:19,23:18,24:17,
+ 25:25,26:26,27:27,28:28,29:29,30:30,31:31,32:32
+};
+
+// Anotações vindas do backend
 const A = {{ annotations|safe }};
-const viewport = document.getElementById("viewport");
+
+// SVG / viewport
 const svg = document.getElementById("svg");
+const viewport = document.getElementById("viewport");
 const ctr = document.getElementById("controls");
 
+// Zoom / pan state
 let scale = 1.0, tx = 0, ty = 0;
-let dragging=false, lastX=0, lastY=0;
+let dragging = false, lastX = 0, lastY = 0;
 
-function updateTransform(){
- viewport.setAttribute("transform",`translate(${tx},${ty}) scale(${scale})`);
+function updateTransform() {
+  viewport.setAttribute(
+    "transform",
+    `translate(${tx},${ty}) scale(${scale})`
+  );
 }
 
-function col(i){return ['red','green','blue','orange','purple','cyan'][i%6];}
+function color(id) {
+  return ["red","green","blue","orange","purple","cyan"][id % 6];
+}
 
-// ---- toggles ----
-const byCls = {};
-A.forEach(a=>{
- if(!byCls[a.category]) byCls[a.category]=[];
- byCls[a.category].push(a);
+// =====================
+// Agrupar por categoria
+// =====================
+const byCat = {};
+
+A.forEach(a => {
+  const uid = a.category_id;
+
+  if (!byCat[uid]) {
+    byCat[uid] = {
+      universal: `${UNIVERSAL_TO_UNIVERSAL[uid+1] || uid}`,
+      fdi: `${UNIVERSAL_TO_FDI[uid+1] || uid}`,
+      elements: []
+    };
+  }
 });
 
-Object.keys(byCls).forEach(c=>{
- const l=document.createElement('label');
- l.style.marginRight="12px";
- const cb=document.createElement('input');
- cb.type='checkbox'; cb.checked=true;
- cb.onchange=()=>{
-  document.querySelectorAll('[data-cls="'+c+'"]').forEach(e=>{
-   e.style.display = cb.checked ? 'block':'none';
+// =====================
+// Criar checkboxes
+// FDI como padrão visual
+// Maxila: ordem crescente
+// Mandíbula: ordem invertida
+// =====================
+
+// Mapa: universal -> uid
+const universalToUid = {};
+
+Object.keys(byCat).forEach(uid => {
+  const u = byCat[uid].universal; // número Universal clínico
+  universalToUid[u] = uid;
+});
+
+// Universais existentes
+const uppers = [];
+const lowers = [];
+
+Object.keys(universalToUid)
+  .map(Number)
+  .forEach(u => {
+    if (u <= 16) uppers.push(u);
+    else lowers.push(u);
   });
- };
- l.appendChild(cb); l.append(' '+c);
- ctr.appendChild(l);
+
+// Ordenações clínicas corretas
+uppers.sort((a, b) => a - b);   // 1 → 16
+lowers.sort((a, b) => b - a);   // 32 → 17
+
+function createCheckbox(u) {
+  const uid = universalToUid[u];
+  const info = byCat[uid];
+
+  const label = document.createElement("label");
+  label.style.marginRight = "12px";
+
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = true;
+
+  cb.onchange = () => {
+    document
+      .querySelectorAll(`[data-cat='${uid}']`)
+      .forEach(e => {
+        e.style.display = cb.checked ? "block" : "none";
+      });
+  };
+
+  const text = document.createElement("span");
+  text.textContent = info.fdi;        // 👈 FDI padrão
+  text.dataset.universal = info.universal;
+  text.dataset.fdi = info.fdi;
+
+  label.appendChild(cb);
+  label.appendChild(text);
+  ctr.appendChild(label);
+}
+
+// Renderiza MAXILA
+uppers.forEach(createCheckbox);
+
+// Quebra visual
+const breaker = document.createElement("div");
+breaker.style.width = "100%";
+breaker.style.height = "0";
+ctr.appendChild(breaker);
+
+// Renderiza MANDÍBULA (invertida)
+lowers.forEach(createCheckbox);
+	
+
+// =====================
+// Desenhar anotações
+// =====================
+A.forEach(a => {
+  const c = color(a.category_id);
+  const [x,y,w,h] = a.bbox;
+
+  const rect = document.createElementNS(
+    "http://www.w3.org/2000/svg","rect"
+  );
+  rect.setAttribute("x", x);
+  rect.setAttribute("y", y);
+  rect.setAttribute("width", w);
+  rect.setAttribute("height", h);
+  rect.setAttribute("stroke", c);
+  rect.setAttribute("fill", "none");
+  rect.setAttribute("stroke-width", 2);
+  rect.dataset.cat = a.category_id;
+
+  viewport.appendChild(rect);
+
+  a.segmentation.forEach(p => {
+    let d = "M ";
+    for (let i = 0; i < p.length; i += 2)
+      d += p[i] + " " + p[i+1] + " ";
+    d += "Z";
+
+    const path = document.createElementNS(
+      "http://www.w3.org/2000/svg","path"
+    );
+    path.setAttribute("d", d);
+    path.setAttribute("stroke", c);
+    path.setAttribute("fill", c);
+    path.setAttribute("fill-opacity", 0.3);
+    path.dataset.cat = a.category_id;
+
+    viewport.appendChild(path);
+  });
 });
 
-// ---- draw ----
-A.forEach(a=>{
- const c=col(a.category_id);
- const [x,y,w,h]=a.bbox;
- const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
- r.setAttribute('x',x);r.setAttribute('y',y);
- r.setAttribute('width',w);r.setAttribute('height',h);
- r.setAttribute('stroke',c);r.setAttribute('fill','none');
- r.setAttribute('stroke-width',2);
- r.dataset.cls=a.category;
- viewport.appendChild(r);
+function applyNotation(mode) {
+  document
+    .querySelectorAll("#controls span")
+    .forEach(span => {
+      span.textContent = span.dataset[mode];
+    });
+}
+	
 
- a.segmentation.forEach(p=>{
-  let d='M ';
-  for(let i=0;i<p.length;i+=2) d+=p[i]+' '+p[i+1]+' ';
-  d+='Z';
-  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
-  path.setAttribute('d',d);
-  path.setAttribute('stroke',c);
-  path.setAttribute('fill',c);
-  path.setAttribute('fill-opacity',0.3);
-  path.dataset.cls=a.category;
-  viewport.appendChild(path);
- });
-});
+// =====================
+// Toggle Universal / FDI
+// =====================
+document
+  .querySelectorAll("input[name='notation']")
+  .forEach(radio => {
+    radio.addEventListener("change", () => {
+      applyNotation(radio.value);
+    });
+  });
 
-// ---- zoom ----
-svg.addEventListener("wheel",e=>{
- e.preventDefault();
- scale *= e.deltaY<0 ? 1.1 : 0.9;
- scale=Math.min(Math.max(scale,0.2),10);
- updateTransform();
+
+// =====================
+// Zoom (mouse wheel)
+// =====================
+svg.addEventListener("wheel", e => {
+  e.preventDefault();
+  scale *= e.deltaY < 0 ? 1.1 : 0.9;
+  scale = Math.min(Math.max(scale, 0.2), 10);
+  updateTransform();
 });
 
-// ---- pan ----
-svg.addEventListener("mousedown",e=>{
- dragging=true; lastX=e.clientX; lastY=e.clientY;
+// =====================
+// Pan (drag)
+// =====================
+svg.addEventListener("mousedown", e => {
+  dragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
 });
-window.addEventListener("mouseup",()=>dragging=false);
-window.addEventListener("mousemove",e=>{
- if(!dragging) return;
- tx+=(e.clientX-lastX)/scale;
- ty+=(e.clientY-lastY)/scale;
- lastX=e.clientX; lastY=e.clientY;
- updateTransform();
+
+window.addEventListener("mouseup", () => dragging = false);
+
+window.addEventListener("mousemove", e => {
+  if (!dragging) return;
+  tx += (e.clientX - lastX) / scale;
+  ty += (e.clientY - lastY) / scale;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  updateTransform();
 });
+
+// =====================
+// Touch pan + zoom (tuned)
+// =====================
+let touchLastX = null;
+let touchLastY = null;
+let lastPinchDist = null;
+
+const PAN_SENSITIVITY = 1.2;
+const ZOOM_SENSITIVITY = 0.005;
+
+svg.addEventListener("touchstart", e => {
+  if (e.touches.length === 1) {
+    touchLastX = e.touches[0].clientX;
+    touchLastY = e.touches[0].clientY;
+  }
+}, { passive: false });
+
+svg.addEventListener("touchmove", e => {
+  if (e.touches.length === 1 && touchLastX !== null) {
+    e.preventDefault();
+
+    const x = e.touches[0].clientX;
+    const y = e.touches[0].clientY;
+
+    tx += (x - touchLastX) * PAN_SENSITIVITY / scale;
+    ty += (y - touchLastY) * PAN_SENSITIVITY / scale;
+
+    touchLastX = x;
+    touchLastY = y;
+
+    updateTransform();
+  }
+
+  if (e.touches.length === 2) {
+    e.preventDefault();
+
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+
+    if (lastPinchDist) {
+      const delta = dist - lastPinchDist;
+      scale *= 1 + delta * ZOOM_SENSITIVITY;
+      scale = Math.min(Math.max(scale, 0.2), 10);
+      updateTransform();
+    }
+
+    lastPinchDist = dist;
+  }
+}, { passive: false });
+
+svg.addEventListener("touchend", () => {
+  touchLastX = null;
+  touchLastY = null;
+  lastPinchDist = null;
+});
+
+// =====================
+// Marcar / Desmarcar todos
+// =====================
+const btnAllOn  = document.getElementById("btn-all-on");
+const btnAllOff = document.getElementById("btn-all-off");
+
+btnAllOn.addEventListener("click", () => {
+  // marcar todos os checkboxes
+  document
+    .querySelectorAll("#controls input[type='checkbox']")
+    .forEach(cb => {
+      cb.checked = true;
+    });
+
+  // mostrar todas as anotações
+  document
+    .querySelectorAll("[data-cat]")
+    .forEach(el => {
+      el.style.display = "block";
+    });
+});
+
+btnAllOff.addEventListener("click", () => {
+  // desmarcar todos os checkboxes
+  document
+    .querySelectorAll("#controls input[type='checkbox']")
+    .forEach(cb => {
+      cb.checked = false;
+    });
+
+  // esconder todas as anotações
+  document
+    .querySelectorAll("[data-cat]")
+    .forEach(el => {
+      el.style.display = "none";
+    });
+});
+
 </script>
 
+<a href="{% url 'image_list' split %}">← Voltar</a>
+
 {% endblock %}
+

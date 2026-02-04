@@ -15,14 +15,13 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  text-align: center;
 }
 
 .logo-img {
   width: 96px;
-  height: auto;
+  max-width: 30vw;
 }
-
 .logo {
   font-size: 40px;
   font-weight: 700;
@@ -85,3 +84,45 @@ svg {
 svg:active {
   cursor: grabbing;
 }
+
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+
+@media (max-width: 768px) {
+
+  h1, h2, h3 {
+    text-align: center;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .viewer-wrapper {
+    padding: 8px;
+  }
+
+  #controls label {
+    font-size: 14px;
+  }
+
+  footer {
+    font-size: 12px;
+  }
+}
+
+.image-list {
+  padding: 0;
+  list-style: none;
+}
+
+.image-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
